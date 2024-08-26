@@ -110,7 +110,7 @@ def findSubs():
 def find(word, domain):
     global threads
 
-    s = (word + domain).replace("\n", "")
+    s = (word + "." + domain).replace("\n", "")
 
     try:
         sub = socket.gethostbyname(s)
