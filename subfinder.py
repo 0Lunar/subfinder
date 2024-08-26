@@ -112,10 +112,14 @@ def find(word, domain):
 
     s = (word + domain).replace("\n", "")
 
-    sub = socket.gethostbyname(s)
+    try:
+        sub = socket.gethostbyname(s)
 
-    if sub != "127.0.0.1":
-        print(OK + (word + "." + domain).replace("\n", ""))
+        if sub != "127.0.0.1":
+            print(OK + (word + "." + domain).replace("\n", ""))
+        
+    except:
+        pass
     
     threads -= 1
 
