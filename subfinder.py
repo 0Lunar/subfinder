@@ -3,7 +3,7 @@ import sys
 import random
 import os
 import time
-import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 banner_ascii = """\t                           |`-:_
@@ -14,7 +14,6 @@ banner_ascii = """\t                           |`-:_
 \t    \                                                   \\
 \t  )`.\  )`.   )`.   )`.   )`.   )`.   )`.   )`.   )`.   )`.   )`.
 \t-'   `-'   `-'   `-'   `-'   `-'   `-'   `-'   `-'   `-'   `-'   `
-
 """
 
 
@@ -33,14 +32,9 @@ WARNING = "\x1b[1;33m[\x1b[0m-\x1b[1;33m] "
 INFO = "\x1b[1;34m[\x1b[0mI\x1b[1;34m] "
 
 
-threads = 0
-max_threads = 0
-event = threading.Event()
-
-
 def checkArgs():
     if len(sys.argv) != 4:
-        print("\n" + ERROR + "Usage: python3 subfinder.py domain worlist threads\n\nif you want max threads, set 0 to threads arg")
+        print("\n" + ERROR + "Usage: python3 subfinder.py domain wordlist threads\n\nif you want max threads, set 0 to threads arg")
         sys.exit()
 
 
@@ -58,61 +52,27 @@ def banner():
 
 def check():
     if "://" in sys.argv[1]:
-        print("\n" + ERROR + "The domain don't need the protocol (https://)")
+        print("\n" + ERROR + "The domain doesn't need the protocol (https://)")
         sys.exit()
     
     if "." not in sys.argv[1]:
         print("\n" + ERROR + "Invalid domain")
         sys.exit()
     
-    if os.path.isfile(sys.argv[2]) == False:
+    if not os.path.isfile(sys.argv[2]):
         print("\n" + ERROR + "Can't find wordlist " + sys.argv[2])
         sys.exit()
 
 
 def init():
-    global max_threads
-
     clean()
     banner()
     checkArgs()
     check()
 
-    max_threads = int(sys.argv[3])
-
-
-def findSubs():
-    global threads, max_threads
-
-    domain = sys.argv[1]
-    wordlist = open(sys.argv[2], "rt")
-
-    word = wordlist.readline()
-
-    start = time.time()
-
-    while word != "":
-
-        threading.Thread(target=find, args=(word, domain,)).start()
-
-        if threads == max_threads:
-            event.wait()
-            event.clear()
-
-        threads += 1
-
-        word = wordlist.readline()
-    
-    while threads != 0:
-        pass
-
-    print("\n\n" + INFO + "search time: " + str(int(time.time() - start)) + " sec")
-
 
 def find(word, domain):
-    global threads
-
-    s = (word + "." + domain).replace("\n", "")
+    s = (word.strip() + "." + domain).replace("\n", "")
 
     try:
         sub = socket.gethostbyname(s)
@@ -120,11 +80,21 @@ def find(word, domain):
         if sub != "127.0.0.1":
             print(OK + s)
         
-    except:
+    except socket.gaierror:
         pass
-    
-    threads -= 1
-    event.set()
+
+
+def findSubs():
+    domain = sys.argv[1]
+    max_threads = int(sys.argv[3])
+
+    start = time.time()
+
+    with open(sys.argv[2], "rt") as wordlist, ThreadPoolExecutor(max_workers=max_threads or None) as executor:
+        for word in wordlist:
+            executor.submit(find, word.strip(), domain)
+
+    print("\n\n" + INFO + "search time: " + str(int(time.time() - start)) + " sec")
 
 
 if __name__ == "__main__":
