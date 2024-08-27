@@ -3,7 +3,7 @@ import sys
 import random
 import os
 import time
-from threading import Thread
+import threading
 
 
 banner_ascii = """\t                           |`-:_
@@ -35,11 +35,12 @@ INFO = "\x1b[1;34m[\x1b[0mI\x1b[1;34m] "
 
 threads = 0
 max_threads = 0
+event = threading.Event()
 
 
 def checkArgs():
     if len(sys.argv) != 4:
-        print("\n" + ERROR + "Usage: python3 subfinder.py domain worlist threads")
+        print("\n" + ERROR + "Usage: python3 subfinder.py domain worlist threads\n\nif you want max threads, set 0 to threads arg")
         sys.exit()
 
 
@@ -92,10 +93,11 @@ def findSubs():
 
     while word != "":
 
-        while threads == max_threads:
-            pass
+        threading.Thread(target=find, args=(word, domain,)).start()
 
-        Thread(target=find, args=(word, domain,)).start()
+        if threads == max_threads:
+            event.wait()
+            event.clear()
 
         threads += 1
 
@@ -116,12 +118,13 @@ def find(word, domain):
         sub = socket.gethostbyname(s)
 
         if sub != "127.0.0.1":
-            print(OK + (word + "." + domain).replace("\n", ""))
+            print(OK + s)
         
     except:
         pass
     
     threads -= 1
+    event.set()
 
 
 if __name__ == "__main__":
